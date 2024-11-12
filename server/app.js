@@ -3,10 +3,15 @@ const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
+const bodyParser = require('body-parser');
+const fs = require('fs');
+const multer = require('multer');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const User = require('./models/User');
+const Commodity = require('./models/commodity');
+const { url } = require('inspector');
 const app = express();
 
 const saltRounds = 10;
@@ -34,8 +39,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use('/images', express.static(path.join(__dirname, 'public/images')));
 
-app.post('/api/login', async (req, res) =>{
+const upload = multer();
+
+app.post('/api/login', async (req, res) =>{ //登入
   const { email, password } = req.body;
   try{
     const user = await User.findOne({ email });
@@ -52,7 +61,7 @@ app.post('/api/login', async (req, res) =>{
   }
 });
 
-app.post('/api/auth[...nextauth]', async (req, res) =>{
+app.post('/api/auth[...nextauth]', async (req, res) =>{ //身分驗證
   const { email, password } = req.body;
   try{
     const user = await User.findOne({ email });
@@ -69,8 +78,61 @@ app.post('/api/auth[...nextauth]', async (req, res) =>{
   }
 });
 
-app.post('/api/register', async (req, res) => {
-  console.log(req.body);
+app.post('/api/upload',upload.single('image'), async(req, res) => { //新增商品
+  try{
+    console.log("圖片資料:" + req.file);
+    const {name , description, price, number,} = req.body;
+    if (!req.file) {
+      return res.status(400).json({ error: '請上傳圖片' });
+    }
+    const imagePath = path.join(__dirname, 'public/images', req.file.originalname);
+    fs.writeFileSync(imagePath, req.file.buffer);
+
+    const newCommodity = new Commodity({
+      name,
+      description,
+      price,
+      number,
+      image: {
+              contentType: req.file.mimetype,
+              url: `/images/${req.file.originalname}`,
+      },
+    });
+    console.log(imagePath);
+    await newCommodity.save();
+    res.status(200).json({message:'商品上傳成功' , data: newCommodity});
+  }catch(error){
+    res.status(500).json({error:'商品上傳失敗', error: error.message});
+  }
+});
+
+app.patch('/api/edit', async (req, res) =>{
+  try{
+    const { updates } = req.body;
+    // 批量更新每個商品
+    const updatePromises = Object.keys(updates).map(id => 
+      Commodity.findByIdAndUpdate(id, updates[id], { new: true })
+    );
+    const updatedCommodities = await Promise.all(updatePromises);
+    res.status(200).json({ message:'修改成功', updatedCommodities});
+  }catch(e){
+    res.status(500).json({ message: '修改失敗', error: e.message});
+  }
+
+})
+
+app.get('/api/commodities', async (req, res) => {
+  try{
+    res.set('Cache-Control', 'no-store');
+    const commodities = await Commodity.find({});
+    res.status(200).json(commodities);
+  }catch(e){
+    res.status(500).json({ message: '資料取得失敗' , error: error.message });
+  }
+})
+
+app.post('/api/register', async (req, res) => { // 會員註冊
+  // console.log(req.body);
   const { name, email, password } = req.body;
   let role = req.body.role || 'user';
   try {
