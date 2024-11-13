@@ -44,7 +44,8 @@ app.use('/images', express.static(path.join(__dirname, 'public/images')));
 
 const upload = multer();
 
-app.post('/api/login', async (req, res) =>{ //登入
+//登入
+app.post('/api/login', async (req, res) =>{ 
   const { email, password } = req.body;
   try{
     const user = await User.findOne({ email });
@@ -61,7 +62,8 @@ app.post('/api/login', async (req, res) =>{ //登入
   }
 });
 
-app.post('/api/auth[...nextauth]', async (req, res) =>{ //身分驗證
+//身分驗證
+app.post('/api/auth[...nextauth]', async (req, res) =>{ 
   const { email, password } = req.body;
   try{
     const user = await User.findOne({ email });
@@ -78,9 +80,10 @@ app.post('/api/auth[...nextauth]', async (req, res) =>{ //身分驗證
   }
 });
 
-app.post('/api/upload',upload.single('image'), async(req, res) => { //新增商品
+//新增商品
+app.post('/api/upload',upload.single('image'), async(req, res) => { 
   try{
-    console.log("圖片資料:" + req.file);
+    
     const {name , description, price, number,} = req.body;
     if (!req.file) {
       return res.status(400).json({ error: '請上傳圖片' });
@@ -106,6 +109,7 @@ app.post('/api/upload',upload.single('image'), async(req, res) => { //新增商�
   }
 });
 
+//修改商品
 app.patch('/api/edit', async (req, res) =>{
   try{
     const { updates } = req.body;
@@ -118,7 +122,35 @@ app.patch('/api/edit', async (req, res) =>{
   }catch(e){
     res.status(500).json({ message: '修改失敗', error: e.message});
   }
+})
 
+//刪除商品&後端資料夾中的圖片
+app.delete('/api/delete', async(req, res ) =>{
+  try{
+    const { deletes } = req.body;
+    const deletePromises = deletes.map(id => 
+      Commodity.findByIdAndDelete(id)
+    );
+  const deleteCommodities = await Promise.all(deletePromises);
+  deleteCommodities.forEach(commodity => {
+    const imageUrl = commodity?.image?.url;
+    console.log(imageUrl);
+    if (imageUrl) {
+      const imagePath = path.join(__dirname, 'public', imageUrl);
+
+      // 刪除圖片
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+        console.log(`圖片已刪除: ${imagePath}`);
+      } else {
+        console.warn(`找不到圖片: ${imagePath}`);
+      }
+    }
+  });
+  res.status(200).json({message:'刪除成功', deleteCommodities});
+  }catch(e){
+    res.status(500).json({ message:'刪除失敗',e})
+  }
 })
 
 app.get('/api/commodities', async (req, res) => {
@@ -131,7 +163,8 @@ app.get('/api/commodities', async (req, res) => {
   }
 })
 
-app.post('/api/register', async (req, res) => { // 會員註冊
+// 會員註冊
+app.post('/api/register', async (req, res) => { 
   // console.log(req.body);
   const { name, email, password } = req.body;
   let role = req.body.role || 'user';
@@ -140,7 +173,7 @@ app.post('/api/register', async (req, res) => { // 會員註冊
     if(existingUser){
       return res.status(400).json({ message: '該信箱已被註冊'});
     }
-    if(name ==='admin'){
+    if(name ==='admin'){ //設定管理員
       role = 'admin';
     };
     const hashedPassword = await bcrypt.hash(password, saltRounds);
