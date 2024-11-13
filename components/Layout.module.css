@@ -1,0 +1,32 @@
+.footer{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 50px; /*設定footer本身高度*/
+  /* margin-top: -50px; 隨footer高度需做調整 */
+  background-color: lightblue;
+  
+}
+
+.layoutContainer{
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; 
+   /* 確保頁面至少填滿視窗高度 */
+}
+.mainContent {
+  margin: 5px;
+  flex: 1;  
+  /* 自動填滿剩餘空間 */
+}
+.link{
+  margin: 3px;
+  font-size: 30px;
+}
+.navBar{
+  display: flex;
+  margin: 3px;
+  padding-right: 20px;
+  justify-content: right;
+  border: 2px solid red; 
+}
